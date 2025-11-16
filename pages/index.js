@@ -1,87 +1,83 @@
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { supabase } from '../lib/supabaseClient';
-import { useRouter } from 'next/router';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Home() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
 
-  // Handle Supabase magic link redirect
+  // ✅ FIXED REDIRECT HANDLING
   useEffect(() => {
-    const hash = window.location.hash;
-
-    if (hash && hash.includes("access_token")) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data?.session) {
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session) {
           router.push("/dashboard");
         }
-      });
-    }
-  }, []);
+      }
+    );
 
-  async function signInWithEmail(e) {
-    e.preventDefault();
+    return () => listener.subscription.unsubscribe();
+  }, [router]);
+
+  // Send Magic Link
+  async function signInWithEmail() {
     setLoading(true);
+    setMessage("");
 
-    const { error } = await supabase.auth.signInWithOtp({ 
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: '${process.env.NEXT_PUBLIC_APP_URL}/auth/v1/callback',
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/v1/callback`,
       },
     });
+
     if (error) {
       setMessage(error.message);
     } else {
       setMessage("Check your email for a sign-in link.");
     }
+
     setLoading(false);
   }
 
   return (
-    <div className="page-landing">
-      <header className="hero">
-        <div className="brand">TaxCraft</div>
-        <p className="tag">Simple UK self-employed tax planner with a premium dashboard.</p>
-      </header>
+    <main className="page">
+      <section className="hero-left card">
+        <h1 className="title">Simple UK self-employed tax planner with a premium dashboard.</h1>
+        <p>Save yearly summaries</p>
+        <p>Charts and exportable reports</p>
+        <p>Invoice & expense tracking (Pro)</p>
+      </section>
 
-      <main className="hero-grid">
+      <section className="hero-right card">
+        <h2>Sign in / Sign up</h2>
 
-        {/* Left side */}
-        <section className="hero-left card">
-          <h2>Why TaxCraft?</h2>
-          <ul>
-            <li>Save yearly summaries</li>
-            <li>Charts and exportable reports</li>
-            <li>Invoice & expense tracking (Pro)</li>
-          </ul>
-          <Link href="/dashboard" className="btn">Try Demo Dashboard</Link>
-        </section>
+        {message && <p>{message}</p>}
 
-        {/* Right side */}
-        <aside className="hero-right card">
-          <h3>Sign in / Sign up</h3>
-          <form onSubmit={signInWithEmail}>
-            <label>Email</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              type="email"
-              required
-            />
+        <input
+          className="text-input"
+          placeholder="you@example.com"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
 
-            <button className="btn-primary" type="submit" disabled={loading}>
-              Sign in via Magic Link
-            </button>
-          </form>
+        <button
+          className="btn-primary"
+          type="button"
+          onClick={signInWithEmail}
+          disabled={loading}
+        >
+          {loading ? "Sending..." : "Sign in via Magic Link"}
+        </button>
 
-          {message && <div className="message">{message}</div>}
-        </aside>
-
-      </main>
-    </div>
+        <p className="small-text">
+          For security purposes, you can only request this after 60 seconds.
+        </p>
+      </section>
+    </main>
   );
 }
