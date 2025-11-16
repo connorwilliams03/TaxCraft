@@ -26,8 +26,12 @@ export default function Home() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithOtp({ email });
-
+    const { error } = await supabase.auth.signInWithOtp({ 
+      email,
+      options: {
+        emailRedirectTo: '${process.env.NEXT_PUBLIC_APP_URL}/auth/v1/callback',
+      },
+    });
     if (error) {
       setMessage(error.message);
     } else {
